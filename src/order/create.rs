@@ -18,6 +18,7 @@ fn new_input(rb: RequestBody, table_number: u32) -> Input {
         cook_dur: 0,
         menu_id: rb.menu_id,
     }
+    .set_cook_dur()
 }
 
 struct Input {
@@ -55,6 +56,6 @@ async fn handler(
 ) -> impl Responder {
     let (table_number,) = path_params.into_inner();
     let json_request = request_body.into_inner();
-    let req = new_input(json_request, table_number).set_cook_dur();
-    HttpResponse::Ok().body(format!("{} =>> ", req))
+    let input = new_input(json_request, table_number);
+    HttpResponse::Ok().body(format!("{} =>> ", input))
 }
