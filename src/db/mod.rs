@@ -3,6 +3,8 @@ use std::env;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use tokio_postgres::NoTls;
 
+pub mod order;
+
 pub fn create_conn_pool() -> Pool {
     let mut pg_config = tokio_postgres::Config::new();
     pg_config.host(env::var("PG_HOST").unwrap_or("localhost".to_string()).as_str());
