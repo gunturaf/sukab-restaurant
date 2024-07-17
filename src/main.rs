@@ -1,7 +1,8 @@
 use std::{env, sync::Arc};
 
 use actix_web::{middleware::Logger, web, App, HttpServer};
-use db::order::Repository;
+use db::order::Repository as OrderRepository;
+use db::menu::Repository as MenuRepository;
 use log;
 
 mod db;
@@ -36,10 +37,13 @@ async fn main() -> std::io::Result<()> {
     let server = HttpServer::new(move || {
         let logger = Logger::default();
         let order_repo = db::order::OrderRepository::new(db_conn_pool.clone());
-        let arc_order_repo: Arc<dyn Repository> = Arc::new(order_repo);
+        let arc_order_repo: Arc<dyn OrderRepository> = Arc::new(order_repo);
+        let menu_repo = db::menu::MenuRepository::new(db_conn_pool.clone());
+        let arc_menu_repo: Arc<dyn MenuRepository> = Arc::new(menu_repo);
         App::new()
             .wrap(logger)
             .app_data(web::Data::from(arc_order_repo))
+            .app_data(web::Data::from(arc_menu_repo))
             .service(order::service())
     })
     .bind(host_port.clone())?

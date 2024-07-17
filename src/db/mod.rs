@@ -1,9 +1,16 @@
 use std::env;
 
-use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
-use tokio_postgres::NoTls;
+use deadpool_postgres::{Manager, ManagerConfig, Pool, PoolError, RecyclingMethod};
+use tokio_postgres::{Error, NoTls};
 
 pub mod order;
+pub mod menu;
+
+#[derive(Debug)]
+pub enum OperationError {
+    FailedToConnect(PoolError),
+    FailedToCreate(Error),
+}
 
 pub fn create_conn_pool() -> Pool {
     let mut pg_config = tokio_postgres::Config::new();

@@ -9,7 +9,8 @@ use time::format_description::well_known::Rfc3339;
 
 use crate::db::{
     self,
-    order::{self, OperationError, Order},
+    menu::Menu,
+    order::Order, OperationError,
 };
 
 /// Represents the lower and upper bounds for randomized cook time.
@@ -172,11 +173,11 @@ struct SuccessResponseBody {
 }
 
 impl SuccessResponseBody {
-    fn new(order: Order) -> Self {
+    fn new(order: Order, menu: Menu) -> Self {
         Self {
             order_id: order.order_id,
             table_number: order.table_number,
-            menu_name: "".to_string(),
+            menu_name: menu.name,
             cook_time: order.cook_time,
             created_at: order
                 .created_at
@@ -189,6 +190,7 @@ impl SuccessResponseBody {
 #[post("/order")]
 async fn handler(
     order_repository: web::Data<dyn db::order::Repository>,
+    menu_repository: web::Data<dyn db::menu::Repository>,
     path_params: web::Path<PathParams>,
     request_body: web::Json<RequestBody>,
 ) -> Result<HttpResponse, CreateFailure> {
@@ -197,16 +199,22 @@ async fn handler(
     let input = Input::new(json_request, path_params.table_number, cook_time);
     input.validate()?;
 
-    let order_entity = order::Order::new(
+    let order_entity = db::order::Order::new(
         input.table_number as i32,
         input.menu_id as i32,
         input.cook_time as i32,
     );
     match order_repository.create_order(order_entity).await {
-        Ok(v) => {
-            let response_body = SuccessResponseBody::new(v);
-            Ok(HttpResponse::Ok().json(response_body))
-        }
+        Ok(order_data) => match menu_repository.get_by_id(order_data.menu_id as i64).await {
+            Ok(menu) => {
+                let response_body = SuccessResponseBody::new(order_data, menu);
+                Ok(HttpResponse::Ok().json(response_body))
+            }
+            Err(e) => {
+                log::error!("{:?}", e);
+                Err(CreateFailure::InternalServerError(e))
+            }
+        },
         Err(e) => {
             log::error!("{:?}", e);
             Err(CreateFailure::InternalServerError(e))

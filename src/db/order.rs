@@ -1,7 +1,9 @@
 use async_trait::async_trait;
-use deadpool_postgres::{GenericClient, Pool, PoolError};
+use deadpool_postgres::{GenericClient, Pool};
 use time::OffsetDateTime;
-use tokio_postgres::{types::ToSql, Error};
+use tokio_postgres::types::ToSql;
+
+use super::OperationError;
 
 #[async_trait]
 /// Order repository abstraction.
@@ -44,12 +46,6 @@ impl OrderRepository {
     pub fn new(db_pool: Pool) -> Self {
         Self { db_pool }
     }
-}
-
-#[derive(Debug)]
-pub enum OperationError {
-    FailedToConnect(PoolError),
-    FailedToCreate(Error),
 }
 
 #[async_trait]
