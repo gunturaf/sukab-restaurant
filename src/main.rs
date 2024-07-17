@@ -1,11 +1,13 @@
-use std::env;
+use std::{env, sync::Arc};
 
 use actix_web::{middleware::Logger, web, App, HttpServer};
+use db::order::Repository;
 use log;
 
 mod db;
 mod order;
 
+/// get host:port pair for our HTTP server.
 fn get_host_port() -> (String, u16) {
     const DEFAULT_PORT: u16 = 8080;
 
@@ -26,13 +28,18 @@ async fn main() -> std::io::Result<()> {
     let host_port = get_host_port();
 
     let db_conn_pool = db::create_conn_pool();
-    log::info!("PostgreSQL connection pool is created: {:?}", db_conn_pool.status());
+    log::info!(
+        "PostgreSQL connection pool is created: {:?}",
+        db_conn_pool.clone()
+    );
 
     let server = HttpServer::new(move || {
         let logger = Logger::default();
+        let order_repo = db::order::OrderRepository::new(db_conn_pool.clone());
+        let arc_order_repo: Arc<dyn Repository> = Arc::new(order_repo);
         App::new()
             .wrap(logger)
-            .app_data(web::Data::new(db_conn_pool.clone()))
+            .app_data(web::Data::from(arc_order_repo))
             .service(order::service())
     })
     .bind(host_port.clone())?
