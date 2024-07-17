@@ -1,7 +1,9 @@
 use std::env;
 
-use actix_web::{middleware::Logger, App, HttpServer};
+use actix_web::{middleware::Logger, web, App, HttpServer};
+use log;
 
+mod db;
 mod order;
 
 fn get_host_port() -> (String, u16) {
@@ -21,11 +23,22 @@ async fn main() -> std::io::Result<()> {
     env::set_var("RUST_LOG", "debug");
     env_logger::init();
 
-    HttpServer::new(move || {
+    let host_port = get_host_port();
+
+    let db_conn_pool = db::create_conn_pool();
+    log::info!("PostgreSQL connection pool is created: {:?}", db_conn_pool.status());
+
+    let server = HttpServer::new(move || {
         let logger = Logger::default();
-        App::new().wrap(logger).service(order::service())
+        App::new()
+            .wrap(logger)
+            .app_data(web::Data::new(db_conn_pool.clone()))
+            .service(order::service())
     })
-    .bind(get_host_port())?
-    .run()
-    .await
+    .bind(host_port.clone())?
+    .run();
+
+    log::info!("Server running at http://{}:{}/", host_port.0, host_port.1);
+
+    server.await
 }
