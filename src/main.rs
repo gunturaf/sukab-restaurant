@@ -1,18 +1,14 @@
-use actix_web::{get, App, HttpResponse, HttpServer, Responder};
+use actix_web::{middleware::Logger, App, HttpServer};
 
-pub mod order;
-
-#[get("/")]
-async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Welcome to Sukab Restaurant")
-}
+mod order;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| {
-        App::new()
-            .service(hello)
-            .service(order::service())
+    std::env::set_var("RUST_LOG", "debug");
+    env_logger::init();
+    HttpServer::new(move || {
+        let logger = Logger::default();
+        App::new().wrap(logger).service(order::service())
     })
     .bind(("127.0.0.1", 8080))?
     .run()
