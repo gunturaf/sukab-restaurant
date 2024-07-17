@@ -23,9 +23,9 @@ impl CookTimeBounds {
         }
     }
     fn get_or_default(&self) -> u16 {
-        match env::var(self.env_key()) {
-            Ok(v) => v.parse().unwrap_or_else(|_| self.default_value()),
-            _ => self.default_value(),
+        match env::var(self.env_key()).ok() {
+            Some(v) => v.parse().unwrap_or(self.default_value()),
+            None => self.default_value(),
         }
     }
 }
@@ -102,15 +102,19 @@ struct BadRequestBody {
     message: String,
 }
 
+#[derive(Serialize, Deserialize)]
+struct PathParams {
+    table_number: u32,
+}
+
 #[post("/order")]
 async fn handler(
-    path_params: web::Path<(u32,)>,
+    path_params: web::Path<PathParams>,
     request_body: web::Json<RequestBody>,
 ) -> impl Responder {
-    let (table_number,) = path_params.into_inner();
     let json_request = request_body.into_inner();
     let cook_time = CookTime::new();
-    let input = Input::new(json_request, table_number, cook_time);
+    let input = Input::new(json_request, path_params.table_number, cook_time);
     match input.validate() {
         Err(error_message) => return HttpResponse::BadRequest().json(error_message),
         _ => (),
