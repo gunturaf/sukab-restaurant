@@ -7,11 +7,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use time::format_description::well_known::Rfc3339;
 
-use crate::db::{
-    self,
-    menu::Menu,
-    order::Order, OperationError,
-};
+use crate::db::{self, menu::Menu, order::Order, OperationError};
 
 /// Represents the lower and upper bounds for randomized cook time.
 enum CookTimeBounds {
@@ -204,17 +200,17 @@ async fn handler(
         input.menu_id as i32,
         input.cook_time as i32,
     );
-    match order_repository.create_order(order_entity).await {
-        Ok(order_data) => match menu_repository.get_by_id(order_data.menu_id as i64).await {
-            Ok(menu) => {
-                let response_body = SuccessResponseBody::new(order_data, menu);
-                Ok(HttpResponse::Ok().json(response_body))
-            }
-            Err(e) => {
-                log::error!("{:?}", e);
-                Err(CreateFailure::InternalServerError(e))
-            }
-        },
+    let order_result = match order_repository.create_order(order_entity).await {
+        Ok(order_data) => order_data,
+        Err(e) => {
+            return Err(CreateFailure::InternalServerError(e));
+        }
+    };
+    match menu_repository.get_by_id(order_result.menu_id as i64).await {
+        Ok(menu) => {
+            let response_body = SuccessResponseBody::new(order_result, menu);
+            Ok(HttpResponse::Ok().json(response_body))
+        }
         Err(e) => {
             log::error!("{:?}", e);
             Err(CreateFailure::InternalServerError(e))
