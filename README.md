@@ -2,6 +2,19 @@
 
 The name Sukab is taken from the fictional character made by [famous Indonesian Poet, Seno G. Ajidarma](https://en.wikipedia.org/wiki/Seno_Gumira_Ajidarma).
 
+# System Design
+
+## High level overview
+
+There are four HTTP REST endpoints:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST   | `/table/{table_number}/order` | Create new Order. |
+| GET    | `/table/{table_number}/order` | List all Orders on a Table. |
+| GET    | `/table/{table_number}/order/{order_id}` | Describe an Order on a Table. |
+| DELETE | `/table/{table_number}/order/{order_id}` | Delete an Order on a Table. |
+
 # How to Run the Server
 
 1. Spin up a PostgreSQL server, a minimum version of PostgreSQL 14.
