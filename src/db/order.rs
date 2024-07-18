@@ -58,27 +58,27 @@ impl OrderRepository {
 #[async_trait]
 impl Repository for OrderRepository {
     async fn create_order(&self, data: Order) -> Result<Order, OperationError> {
-        match self.db_pool.get().await {
+        let conn = match self.db_pool.get().await {
             Err(e) => {
                 return Err(OperationError::FailedToConnect(e));
             }
-            Ok(conn) => {
-                let insert_params: &[&(dyn ToSql + Sync)] = &[
-                    &data.menu_id,
-                    &data.table_number,
-                    &data.cook_time,
-                    &data.created_at,
-                ];
-                let query = "INSERT INTO orders (order_id, menu_id, table_number, cook_time, created_at) VALUES (DEFAULT, $1, $2, $3, $4) RETURNING order_id";
-                conn.query_one(query, insert_params)
-                    .await
-                    .map(|row| {
-                        let order_id: i64 = row.try_get("order_id").unwrap_or(0);
-                        Order { order_id, ..data }
-                    })
-                    .map_err(|e| OperationError::FailedToCreate(e))
-            }
-        }
+            Ok(conn) => conn,
+        };
+
+        let insert_params: &[&(dyn ToSql + Sync)] = &[
+            &data.menu_id,
+            &data.table_number,
+            &data.cook_time,
+            &data.created_at,
+        ];
+        let query = "INSERT INTO orders (order_id, menu_id, table_number, cook_time, created_at) VALUES (DEFAULT, $1, $2, $3, $4) RETURNING order_id";
+        conn.query_one(query, insert_params)
+            .await
+            .map(|row| {
+                let order_id: i64 = row.try_get("order_id").unwrap_or(0);
+                Order { order_id, ..data }
+            })
+            .map_err(|e| OperationError::FailedToCreate(e))
     }
 
     async fn list_by_table(&self, table_number: i32) -> Result<Vec<Order>, OperationError> {
