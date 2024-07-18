@@ -1,8 +1,8 @@
 use std::{env, sync::Arc};
 
 use actix_web::{middleware::Logger, web, App, HttpServer};
-use db::order::Repository as OrderRepository;
 use db::menu::Repository as MenuRepository;
+use db::order::Repository as OrderRepository;
 use log;
 
 mod db;
@@ -20,19 +20,26 @@ fn get_host_port() -> (String, u16) {
     (host_env, port_env)
 }
 
+fn set_global_logger() {
+    let rust_log_flag = "RUST_LOG";
+    match env::var(rust_log_flag) {
+        Ok(_) => {}
+        Err(_) => env::set_var(rust_log_flag, "debug"),
+    };
+    env_logger::init();
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // initialize global logger:
-    env::set_var("RUST_LOG", "debug");
-    env_logger::init();
-
-    let host_port = get_host_port();
+    set_global_logger();
 
     let db_conn_pool = db::create_conn_pool();
     log::info!(
         "PostgreSQL connection pool is created: {:?}",
         db_conn_pool.clone()
     );
+
+    let host_port = get_host_port();
 
     let server = HttpServer::new(move || {
         let logger = Logger::default();
