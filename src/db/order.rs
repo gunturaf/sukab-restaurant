@@ -1,11 +1,13 @@
 use async_trait::async_trait;
 use deadpool_postgres::Pool;
+use mockall::automock;
 use postgres_from_row::FromRow;
 use postgres_types::ToSql;
 use time::OffsetDateTime;
 
 use super::OperationError;
 
+#[automock]
 #[async_trait]
 /// Order repository abstraction.
 /// Use this trait as dependency to make the usecase function be easy testable via mocks.

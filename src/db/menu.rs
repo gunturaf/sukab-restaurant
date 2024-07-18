@@ -1,8 +1,10 @@
 use async_trait::async_trait;
 use deadpool_postgres::Pool;
+use mockall::automock;
 
 use super::OperationError;
 
+#[automock]
 #[async_trait]
 /// Menu repository abstraction.
 /// Use this trait as dependency to make the usecase function be easy testable via mocks.

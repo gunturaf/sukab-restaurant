@@ -27,7 +27,7 @@ impl CookTimeBounds {
     fn default_value(&self) -> u16 {
         match &self {
             Self::Min => 5,
-            Self::Max => 10,
+            Self::Max => 15,
         }
     }
     /// returns bounds from environment variables, or defer to predefined default.
@@ -39,7 +39,7 @@ impl CookTimeBounds {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct RequestBody {
     menu_id: u32,
 }
@@ -159,7 +159,7 @@ impl ResponseError for CreateFailure {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct SuccessResponseBody {
     order_id: i64,
     table_number: i32,
@@ -203,6 +203,7 @@ async fn handler(
     let order_result = match order_repository.create_order(order_entity).await {
         Ok(order_data) => order_data,
         Err(e) => {
+            log::error!("{:?}", e);
             return Err(CreateFailure::InternalServerError(e));
         }
     };
@@ -215,5 +216,141 @@ async fn handler(
             log::error!("{:?}", e);
             Err(CreateFailure::InternalServerError(e))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use actix_web::{test, App};
+    use web::Data;
+
+    use super::*;
+
+    #[actix_web::test]
+    /// given: zero table_id.
+    /// when: creating new order.
+    /// then: response status code is 400.
+    async fn test_invalid_table_id() {
+        let  order_repo = crate::db::order::MockRepository::new();
+        let arc_order_repo: Arc<dyn db::order::Repository> = Arc::new(order_repo);
+
+        let menu_repo = crate::db::menu::MockRepository::new();
+        let arc_menu_repo: Arc<dyn db::menu::Repository> = Arc::new(menu_repo);
+
+        let app = test::init_service(
+            App::new()
+                .app_data(Data::from(arc_order_repo))
+                .app_data(Data::from(arc_menu_repo))
+                .service(web::scope("/table/{table_number}").service(handler)),
+        )
+        .await;
+
+        let table_number = 0;
+
+        let req = test::TestRequest::post()
+            .uri(format!("/table/{}/order", table_number).as_str())
+            .set_json(RequestBody { menu_id: 5 })
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_client_error());
+    }
+
+    #[actix_web::test]
+    /// given: all correct input request.
+    /// when: creating new order.
+    /// then: response status code is 200.
+    async fn test_success() {
+        env::set_var("RUST_LOG", "debug");
+        env_logger::init();
+
+        let expect_menu_name = "Nasi Goreng".to_string();
+        let expect_order_id = 123;
+
+        let expect_order_id_cp = expect_order_id.clone();
+        let mut order_repo = crate::db::order::MockRepository::new();
+        order_repo
+            .expect_create_order()
+            .once()
+            .returning(move |order| {
+                Ok(Order {
+                    order_id: expect_order_id_cp,
+                    ..order
+                })
+            });
+
+        let arc_order_repo: Arc<dyn db::order::Repository> = Arc::new(order_repo);
+
+        let expect_menu_name_cp = expect_menu_name.clone();
+        let mut menu_repo = crate::db::menu::MockRepository::new();
+        menu_repo.expect_get_by_id().once().returning(move |_| {
+            Ok(Menu {
+                name: expect_menu_name_cp.clone(),
+            })
+        });
+
+        let arc_menu_repo: Arc<dyn db::menu::Repository> = Arc::new(menu_repo);
+
+        let app = test::init_service(
+            App::new()
+                .app_data(Data::from(arc_order_repo))
+                .app_data(Data::from(arc_menu_repo))
+                .service(web::scope("/table/{table_number}").service(handler)),
+        )
+        .await;
+
+        let table_number = 3;
+
+        let req = test::TestRequest::post()
+            .uri(format!("/table/{}/order", table_number).as_str())
+            .set_json(RequestBody { menu_id: 5 })
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+        let response_body: SuccessResponseBody = test::read_body_json(resp).await;
+        assert_eq!(response_body.table_number, table_number);
+        assert_eq!(response_body.order_id, expect_order_id);
+        assert_eq!(response_body.menu_name, expect_menu_name);
+        assert_ne!(response_body.cook_time, 0);
+        assert!(time::OffsetDateTime::parse(&response_body.created_at, &Rfc3339).is_ok());
+    }
+
+    #[actix_web::test]
+    /// given: broken database connection.
+    /// when: creating new order.
+    /// then: response status code is 500.
+    async fn test_failed_insert() {
+        let mut order_repo = crate::db::order::MockRepository::new();
+        order_repo
+            .expect_create_order()
+            .once()
+            .returning(|_| Err(OperationError::OtherError));
+
+        let arc_order_repo: Arc<dyn db::order::Repository> = Arc::new(order_repo);
+
+        let menu_repo = crate::db::menu::MockRepository::new();
+
+        let arc_menu_repo: Arc<dyn db::menu::Repository> = Arc::new(menu_repo);
+
+        let app = test::init_service(
+            App::new()
+                .app_data(Data::from(arc_order_repo))
+                .app_data(Data::from(arc_menu_repo))
+                .service(web::scope("/table/{table_number}").service(handler)),
+        )
+        .await;
+
+        let table_number = 3;
+
+        let req = test::TestRequest::post()
+            .uri(format!("/table/{}/order", table_number).as_str())
+            .set_json(RequestBody { menu_id: 5 })
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_server_error());
     }
 }

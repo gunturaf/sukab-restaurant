@@ -16,3 +16,4 @@ async-trait = "0.1.81"
 time = "0.3.36"
 postgres-types = { version = "0.2.6", features = ["derive"] }
 postgres-from-row = "0.5.2"
+mockall = "0.12.1"
