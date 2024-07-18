@@ -22,6 +22,12 @@ pub trait Repository {
         table_number: i32,
         order_id: i64,
     ) -> Result<Option<Order>, OperationError>;
+    /// Delete an Order.
+    async fn delete_order(
+        &self,
+        table_number: i32,
+        order_id: i64,
+    ) -> Result<Option<i64>, OperationError>;
 }
 
 /// Represents a single Order entity.
@@ -121,5 +127,23 @@ impl Repository for OrderRepository {
                 None => None,
             })
             .map_err(|e| OperationError::FailedToGetDetail(e))
+    }
+
+    async fn delete_order(
+        &self,
+        table_number: i32,
+        order_id: i64,
+    ) -> Result<Option<i64>, OperationError> {
+        let conn = self.get_conn().await?;
+
+        let query = "DELETE FROM orders WHERE table_number = $1 AND order_id = $2";
+        let query_result = conn.execute(query, &[&table_number, &order_id]).await;
+        match query_result {
+            Ok(r) => match r {
+                0 => Ok(None),
+                _ => Ok(Some(order_id)),
+            },
+            Err(e) => Err(OperationError::FailedToDelete(e)),
+        }
     }
 }

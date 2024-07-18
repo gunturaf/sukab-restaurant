@@ -12,6 +12,7 @@ pub enum OperationError {
     FailedToConnect(PoolError),
     FailedToCreate(Error),
     FailedToGetDetail(Error),
+    FailedToDelete(Error),
     OtherError,
 }
 
