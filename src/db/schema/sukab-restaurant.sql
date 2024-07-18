@@ -14,6 +14,9 @@ create table public.orders
     created_at   timestamp with time zone
 );
 
+create index orders_table_number_order_id_index
+    on public.orders (table_number, order_id);
+
 create table public.menus
 (
     menu_id bigserial
