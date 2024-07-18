@@ -101,8 +101,8 @@ impl Repository for OrderRepository {
     async fn list_by_table(&self, table_number: i32) -> Result<Vec<Order>, OperationError> {
         let conn = self.get_conn().await?;
 
-        let query = "SELECT o.*, m.* FROM orders o INNER JOIN menus m ON o.menu_id = m.menu_id WHERE table_number = $1 ORDER BY $2 ASC";
-        conn.query(query, &[&table_number, &"created_at"])
+        let query = "SELECT o.*, m.* FROM orders o INNER JOIN menus m ON o.menu_id = m.menu_id WHERE table_number = $1 ORDER BY created_at DESC";
+        conn.query(query, &[&table_number])
             .await
             .map(|rows| {
                 rows.iter()
