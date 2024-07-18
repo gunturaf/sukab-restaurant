@@ -4,7 +4,6 @@ use actix_web::{
     body::BoxBody, get, http::StatusCode, web, HttpResponse, HttpResponseBuilder, ResponseError,
 };
 use serde::{Deserialize, Serialize};
-use time::format_description::well_known::Rfc3339;
 
 use crate::{
     db::{self, order::Order, OperationError},
@@ -96,7 +95,7 @@ impl SuccessResponseBody {
                     id: order.menu_id as i64,
                     name: order.name.clone().unwrap_or("".to_string()),
                 },
-                created_at: order.created_at.format(&Rfc3339).unwrap_or("".to_string()),
+                created_at: OrderData::format_time(order.created_at),
             },
         }
     }

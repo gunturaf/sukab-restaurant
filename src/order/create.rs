@@ -5,7 +5,6 @@ use actix_web::{
 };
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use time::format_description::well_known::Rfc3339;
 
 use crate::{
     db::{self, menu::Menu, order::Order, OperationError},
@@ -168,10 +167,7 @@ impl SuccessResponseBody {
                     id: menu.id,
                     name: menu.name,
                 },
-                created_at: order
-                    .created_at
-                    .format(&Rfc3339)
-                    .unwrap_or("---".to_string()),
+                created_at: OrderData::format_time(order.created_at),
             },
         }
     }
@@ -218,6 +214,7 @@ mod tests {
     use std::sync::Arc;
 
     use actix_web::{test, App};
+    use time::format_description::well_known::Rfc3339;
     use web::Data;
 
     use super::*;
