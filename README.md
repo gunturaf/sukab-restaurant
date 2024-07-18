@@ -30,4 +30,4 @@ The name Sukab is taken from the fictional character made by [famous Indonesian 
 |`PG_PWD`       | PostgreSQL password, defaults to empty string.|Yes|`<empty string>`|
 |`PG_DBNAME`    | PostgreSQL database name, defaults to `sukab_restaurant`.|No|`sukab_restaurant`|
 |`COOK_TIME_MIN`| Minimum bound to get randomized Cook Time.|No|`5`|
-|`COOK_TIME_MIN`| Maximum bound to get randomized Cook Time.|No|`10`|
+|`COOK_TIME_MIN`| Maximum bound to get randomized Cook Time.|No|`15`|

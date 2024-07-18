@@ -6,9 +6,14 @@ use actix_web::{
 use serde::{Deserialize, Serialize};
 use time::format_description::well_known::Rfc3339;
 
-use crate::db::{self, order::Order, OperationError};
+use crate::{
+    db::{self, order::Order, OperationError},
+    order::InternalServerErrorBody,
+};
 
-/// The input data to create a new Order which came from the User.
+use super::{BadRequestBody, MenuData, OrderData};
+
+/// The input data to list Orders.
 struct Input {
     table_number: u32,
 }
@@ -19,9 +24,9 @@ impl Input {
     }
 
     /// performs simple request validation to make check some bounds.
-    fn validate(&self) -> Result<bool, CreateFailure> {
+    fn validate(&self) -> Result<bool, ListFailure> {
         if self.table_number < 1 || self.table_number > 100 {
-            return Err(CreateFailure::InvalidInput(BadRequestBody {
+            return Err(ListFailure::InvalidInput(BadRequestBody {
                 error: true,
                 message: String::from("table_number must be in range of 1 to 100"),
             }));
@@ -30,47 +35,35 @@ impl Input {
     }
 }
 
-#[derive(Serialize, Debug)]
-struct BadRequestBody {
-    error: bool,
-    message: String,
-}
-
-#[derive(Serialize, Debug)]
-struct InternalServerErrorBody {
-    error: bool,
-    message: String,
-}
-
 #[derive(Serialize, Deserialize)]
 struct PathParams {
     table_number: u32,
 }
 
 #[derive(Debug)]
-enum CreateFailure {
+enum ListFailure {
     InvalidInput(BadRequestBody),
     InternalServerError(OperationError),
 }
 
-impl fmt::Display for CreateFailure {
+impl fmt::Display for ListFailure {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "failed to create order")
+        write!(f, "failed to list orders")
     }
 }
 
-impl ResponseError for CreateFailure {
+impl ResponseError for ListFailure {
     fn status_code(&self) -> actix_web::http::StatusCode {
         match self {
-            CreateFailure::InvalidInput(_) => StatusCode::BAD_REQUEST,
-            CreateFailure::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ListFailure::InvalidInput(_) => StatusCode::BAD_REQUEST,
+            ListFailure::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
     fn error_response(&self) -> HttpResponse<BoxBody> {
         match self {
-            CreateFailure::InvalidInput(r) => HttpResponseBuilder::new(self.status_code()).json(r),
-            CreateFailure::InternalServerError(e) => {
+            ListFailure::InvalidInput(r) => HttpResponseBuilder::new(self.status_code()).json(r),
+            ListFailure::InternalServerError(e) => {
                 log::error!("{:?}", e);
                 HttpResponseBuilder::new(self.status_code()).json(InternalServerErrorBody {
                     error: true,
@@ -87,16 +80,6 @@ struct SuccessResponseBody {
     orders: Vec<OrderData>,
 }
 
-#[derive(Serialize, Deserialize)]
-struct OrderData {
-    order_id: i64,
-    table_number: i32,
-    menu_id: i32,
-    cook_time: i32,
-    name: String,
-    created_at: String,
-}
-
 impl SuccessResponseBody {
     fn new(orders: Vec<Order>) -> Self {
         let order_list: Vec<OrderData> = orders
@@ -104,9 +87,11 @@ impl SuccessResponseBody {
             .map(|order| OrderData {
                 order_id: order.order_id,
                 table_number: order.table_number,
-                menu_id: order.menu_id,
+                menu: MenuData {
+                    id: order.menu_id as i64,
+                    name: order.name.clone().unwrap_or("".to_string()),
+                },
                 cook_time: order.cook_time,
-                name: order.name.clone().unwrap_or("".to_string()),
                 created_at: order.created_at.format(&Rfc3339).unwrap_or("".to_string()),
             })
             .collect();
@@ -118,7 +103,7 @@ impl SuccessResponseBody {
 async fn handler(
     order_repository: web::Data<dyn db::order::Repository>,
     path_params: web::Path<PathParams>,
-) -> Result<HttpResponse, CreateFailure> {
+) -> Result<HttpResponse, ListFailure> {
     let input = Input::new(path_params.table_number);
     input.validate()?;
 
@@ -127,7 +112,7 @@ async fn handler(
         .await
     {
         Ok(orders) => Ok(HttpResponse::Ok().json(SuccessResponseBody::new(orders))),
-        Err(e) => Err(CreateFailure::InternalServerError(e)),
+        Err(e) => Err(ListFailure::InternalServerError(e)),
     }
 }
 
@@ -210,12 +195,12 @@ mod tests {
         let response_body: SuccessResponseBody = test::read_body_json(resp).await;
         assert_eq!(response_body.orders[0].table_number, table_number);
         assert_eq!(response_body.orders[0].order_id, expect_order_id);
-        assert_eq!(response_body.orders[0].name, expect_menu_name);
+        assert_eq!(response_body.orders[0].menu.name, expect_menu_name);
         assert_ne!(response_body.orders[0].cook_time, 0);
     }
 
     #[actix_web::test]
-    /// given: zero table_id.
+    /// given: failure when accessing the database.
     /// when: list Orders in a Table.
     /// then: response status code is 500.
     async fn test_database_failure() {

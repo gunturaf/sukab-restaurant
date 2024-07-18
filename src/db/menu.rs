@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use deadpool_postgres::Pool;
 use mockall::automock;
+use postgres_from_row::FromRow;
 
 use super::OperationError;
 
@@ -12,8 +13,18 @@ pub trait Repository {
     async fn get_by_id(&self, id: i64) -> Result<Menu, OperationError>;
 }
 
+#[derive(FromRow)]
 pub struct Menu {
+    #[from_row(rename = "menu_id")]
+    pub id: i64,
     pub name: String,
+}
+
+#[cfg(test)]
+impl Menu {
+    pub fn new(id: i64, name: String) -> Self {
+        Self { id, name }
+    }
 }
 
 #[derive(Clone)]
@@ -37,17 +48,11 @@ impl Repository for MenuRepository {
                 return Err(OperationError::FailedToConnect(e));
             }
             Ok(conn) => {
-                let query = "SELECT name FROM menus WHERE menu_id = $1";
+                let query = "SELECT * FROM menus WHERE menu_id = $1";
                 conn.query_one(query, &[&id])
                     .await
-                    .map(|row| {
-                        Menu {
-                            name: row.try_get("name").unwrap_or("--".to_string()),
-                        }
-                    })
-                    .map_err(|e| {
-                        OperationError::FailedToCreate(e)
-                    })
+                    .map(|row| Menu::from_row(&row))
+                    .map_err(|e| OperationError::FailedToCreate(e))
             }
         }
     }

@@ -7,7 +7,12 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use time::format_description::well_known::Rfc3339;
 
-use crate::db::{self, menu::Menu, order::Order, OperationError};
+use crate::{
+    db::{self, menu::Menu, order::Order, OperationError},
+    order::InternalServerErrorBody,
+};
+
+use super::{BadRequestBody, MenuData, OrderData};
 
 /// Represents the lower and upper bounds for randomized cook time.
 enum CookTimeBounds {
@@ -107,18 +112,6 @@ impl Input {
     }
 }
 
-#[derive(Serialize, Debug)]
-struct BadRequestBody {
-    error: bool,
-    message: String,
-}
-
-#[derive(Serialize, Debug)]
-struct InternalServerErrorBody {
-    error: bool,
-    message: String,
-}
-
 #[derive(Serialize, Deserialize)]
 struct PathParams {
     table_number: u32,
@@ -159,26 +152,27 @@ impl ResponseError for CreateFailure {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 struct SuccessResponseBody {
-    order_id: i64,
-    table_number: i32,
-    menu_name: String,
-    cook_time: i32,
-    created_at: String,
+    order: OrderData,
 }
 
 impl SuccessResponseBody {
     fn new(order: Order, menu: Menu) -> Self {
         Self {
-            order_id: order.order_id,
-            table_number: order.table_number,
-            menu_name: menu.name,
-            cook_time: order.cook_time,
-            created_at: order
-                .created_at
-                .format(&Rfc3339)
-                .unwrap_or("---".to_string()),
+            order: OrderData {
+                order_id: order.order_id,
+                table_number: order.table_number,
+                cook_time: order.cook_time,
+                menu: MenuData {
+                    id: menu.id,
+                    name: menu.name,
+                },
+                created_at: order
+                    .created_at
+                    .format(&Rfc3339)
+                    .unwrap_or("---".to_string()),
+            },
         }
     }
 }
@@ -233,7 +227,7 @@ mod tests {
     /// when: creating new order.
     /// then: response status code is 400.
     async fn test_invalid_table_id() {
-        let  order_repo = crate::db::order::MockRepository::new();
+        let order_repo = crate::db::order::MockRepository::new();
         let arc_order_repo: Arc<dyn db::order::Repository> = Arc::new(order_repo);
 
         let menu_repo = crate::db::menu::MockRepository::new();
@@ -282,11 +276,10 @@ mod tests {
 
         let expect_menu_name_cp = expect_menu_name.clone();
         let mut menu_repo = crate::db::menu::MockRepository::new();
-        menu_repo.expect_get_by_id().once().returning(move |_| {
-            Ok(Menu {
-                name: expect_menu_name_cp.clone(),
-            })
-        });
+        menu_repo
+            .expect_get_by_id()
+            .once()
+            .returning(move |_| Ok(Menu::new(1, expect_menu_name_cp.clone())));
 
         let arc_menu_repo: Arc<dyn db::menu::Repository> = Arc::new(menu_repo);
 
@@ -308,11 +301,11 @@ mod tests {
         let resp = test::call_service(&app, req).await;
         assert!(resp.status().is_success());
         let response_body: SuccessResponseBody = test::read_body_json(resp).await;
-        assert_eq!(response_body.table_number, table_number);
-        assert_eq!(response_body.order_id, expect_order_id);
-        assert_eq!(response_body.menu_name, expect_menu_name);
-        assert_ne!(response_body.cook_time, 0);
-        assert!(time::OffsetDateTime::parse(&response_body.created_at, &Rfc3339).is_ok());
+        assert_eq!(response_body.order.table_number, table_number);
+        assert_eq!(response_body.order.order_id, expect_order_id);
+        assert_eq!(response_body.order.menu.name, expect_menu_name);
+        assert_ne!(response_body.order.cook_time, 0);
+        assert!(time::OffsetDateTime::parse(&response_body.order.created_at, &Rfc3339).is_ok());
     }
 
     #[actix_web::test]
