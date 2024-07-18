@@ -82,12 +82,12 @@ impl ResponseError for CreateFailure {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct SuccessResponseBody {
     orders: Vec<OrderData>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct OrderData {
     order_id: i64,
     table_number: i32,
@@ -128,5 +128,118 @@ async fn handler(
     {
         Ok(orders) => Ok(HttpResponse::Ok().json(SuccessResponseBody::new(orders))),
         Err(e) => Err(CreateFailure::InternalServerError(e)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use actix_web::{test, App};
+    use time::OffsetDateTime;
+    use web::Data;
+
+    use super::*;
+
+    #[actix_web::test]
+    /// given: zero table_id.
+    /// when: list Orders in a Table.
+    /// then: response status code is 400.
+    async fn test_invalid_table_id() {
+        let table_number = 0;
+
+        let order_repo = crate::db::order::MockRepository::new();
+        let arc_order_repo: Arc<dyn db::order::Repository> = Arc::new(order_repo);
+
+        let app = test::init_service(
+            App::new()
+                .app_data(Data::from(arc_order_repo))
+                .service(web::scope("/table/{table_number}").service(handler)),
+        )
+        .await;
+
+        let req = test::TestRequest::get()
+            .uri(format!("/table/{}/order", table_number).as_str())
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_client_error());
+    }
+
+    #[actix_web::test]
+    /// given: all request and inputs are valid.
+    /// when: list Orders in a Table.
+    /// then: response status code is 200.
+    async fn test_success() {
+        let expect_menu_name = "Nasi Goreng".to_string();
+        let expect_menu_name_cp = expect_menu_name.clone();
+        let expect_order_id = 123;
+        let table_number = 3;
+
+        let mut order_repo = crate::db::order::MockRepository::new();
+        order_repo
+            .expect_list_by_table()
+            .once()
+            .returning(move |table_number| {
+                let expect_order_data = Order {
+                    order_id: expect_order_id,
+                    table_number,
+                    menu_id: 2,
+                    cook_time: 3,
+                    name: Some(expect_menu_name_cp.clone()),
+                    created_at: OffsetDateTime::now_utc(),
+                };
+                Ok(vec![expect_order_data])
+            });
+
+        let arc_order_repo: Arc<dyn db::order::Repository> = Arc::new(order_repo);
+
+        let app = test::init_service(
+            App::new()
+                .app_data(Data::from(arc_order_repo))
+                .service(web::scope("/table/{table_number}").service(handler)),
+        )
+        .await;
+
+        let req = test::TestRequest::get()
+            .uri(format!("/table/{}/order", table_number).as_str())
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_success());
+        let response_body: SuccessResponseBody = test::read_body_json(resp).await;
+        assert_eq!(response_body.orders[0].table_number, table_number);
+        assert_eq!(response_body.orders[0].order_id, expect_order_id);
+        assert_eq!(response_body.orders[0].name, expect_menu_name);
+        assert_ne!(response_body.orders[0].cook_time, 0);
+    }
+
+    #[actix_web::test]
+    /// given: zero table_id.
+    /// when: list Orders in a Table.
+    /// then: response status code is 500.
+    async fn test_database_failure() {
+        let table_number = 3;
+
+        let mut order_repo = crate::db::order::MockRepository::new();
+        order_repo
+            .expect_list_by_table()
+            .once()
+            .returning(|_| Err(OperationError::OtherError));
+        let arc_order_repo: Arc<dyn db::order::Repository> = Arc::new(order_repo);
+
+        let app = test::init_service(
+            App::new()
+                .app_data(Data::from(arc_order_repo))
+                .service(web::scope("/table/{table_number}").service(handler)),
+        )
+        .await;
+
+        let req = test::TestRequest::get()
+            .uri(format!("/table/{}/order", table_number).as_str())
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        assert!(resp.status().is_server_error());
     }
 }

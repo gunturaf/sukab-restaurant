@@ -263,9 +263,6 @@ mod tests {
     /// when: creating new order.
     /// then: response status code is 200.
     async fn test_success() {
-        env::set_var("RUST_LOG", "debug");
-        env_logger::init();
-
         let expect_menu_name = "Nasi Goreng".to_string();
         let expect_order_id = 123;
 
