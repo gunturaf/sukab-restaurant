@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod create;
 pub mod list;
+pub mod detail;
 
 #[derive(Serialize, Deserialize)]
 struct OrderData {
@@ -33,6 +34,7 @@ struct InternalServerErrorBody {
 
 pub fn service() -> actix_web::Scope {
     web::scope("/table/{table_number}")
+        .service(detail::handler)
         .service(create::handler)
         .service(list::handler)
 }
