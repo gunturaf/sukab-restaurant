@@ -1,7 +1,8 @@
 use async_trait::async_trait;
-use deadpool_postgres::{GenericClient, Pool};
+use deadpool_postgres::Pool;
+use postgres_from_row::FromRow;
+use postgres_types::ToSql;
 use time::OffsetDateTime;
-use tokio_postgres::types::ToSql;
 
 use super::OperationError;
 
@@ -11,14 +12,17 @@ use super::OperationError;
 pub trait Repository {
     /// Store the Order entity into the datastore.
     async fn create_order(&self, data: Order) -> Result<Order, OperationError>;
+    async fn list_by_table(&self, table_number: i32) -> Result<Vec<Order>, OperationError>;
 }
 
 /// Represents a single Order entity.
+#[derive(FromRow)]
 pub struct Order {
     pub order_id: i64,
     pub table_number: i32,
     pub menu_id: i32,
     pub cook_time: i32,
+    pub name: Option<String>,
     pub created_at: OffsetDateTime,
 }
 
@@ -30,6 +34,7 @@ impl Order {
             table_number,
             menu_id,
             cook_time,
+            name: None,
             created_at: OffsetDateTime::now_utc(),
         }
     }
@@ -69,10 +74,27 @@ impl Repository for OrderRepository {
                         let order_id: i64 = row.try_get("order_id").unwrap_or(0);
                         Order { order_id, ..data }
                     })
-                    .map_err(|e| {
-                        OperationError::FailedToCreate(e)
-                    })
+                    .map_err(|e| OperationError::FailedToCreate(e))
             }
         }
+    }
+
+    async fn list_by_table(&self, table_number: i32) -> Result<Vec<Order>, OperationError> {
+        let conn = match self.db_pool.get().await {
+            Err(e) => {
+                return Err(OperationError::FailedToConnect(e));
+            }
+            Ok(conn) => conn,
+        };
+
+        let query = "SELECT o.*, m.* FROM orders o INNER JOIN menus m ON o.menu_id = m.menu_id WHERE table_number = $1 ORDER BY $2 ASC";
+        conn.query(query, &[&table_number, &"created_at"])
+            .await
+            .map(|rows| {
+                rows.iter()
+                    .map(|row| Order::try_from_row(row).unwrap_or(Order::new(0, 0, 0)))
+                    .collect::<Vec<Order>>()
+            })
+            .map_err(|e| OperationError::FailedToCreate(e))
     }
 }
