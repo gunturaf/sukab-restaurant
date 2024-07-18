@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub mod create;
 pub mod list;
 pub mod detail;
+pub mod delete;
 
 #[derive(Serialize, Deserialize)]
 struct OrderData {
@@ -36,5 +37,6 @@ pub fn service() -> actix_web::Scope {
     web::scope("/table/{table_number}")
         .service(detail::handler)
         .service(create::handler)
+        .service(delete::handler)
         .service(list::handler)
 }
