@@ -139,7 +139,7 @@ impl Repository for OrderRepository {
         let query = "DELETE FROM orders WHERE table_number = $1 AND order_id = $2";
         let query_result = conn.execute(query, &[&table_number, &order_id]).await;
         match query_result {
-            Ok(r) => match r {
+            Ok(affected_rows) => match affected_rows {
                 0 => Ok(None),
                 _ => Ok(Some(order_id)),
             },
