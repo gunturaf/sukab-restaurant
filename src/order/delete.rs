@@ -19,22 +19,22 @@ struct Input {
 }
 
 impl Input {
-    fn new(table_number: u32, order_id: u32) -> Self {
+    fn new(path_params: PathParams) -> Self {
         Self {
-            table_number,
-            order_id,
+            table_number: path_params.table_number,
+            order_id: path_params.order_id,
         }
     }
 
     /// performs simple request validation to make check some bounds.
-    fn validate(&self) -> Result<bool, DetailFailure> {
+    fn validate(self) -> Result<Self, DetailFailure> {
         if self.table_number < 1 || self.table_number > 100 {
             return Err(DetailFailure::InvalidInput(BadRequestBody {
                 error: true,
                 message: String::from("table_number must be in range of 1 to 100"),
             }));
         }
-        return Ok(true);
+        return Ok(self);
     }
 }
 
@@ -89,8 +89,7 @@ async fn handler(
     order_repository: web::Data<dyn db::order::Repository>,
     path_params: web::Path<PathParams>,
 ) -> Result<HttpResponse, DetailFailure> {
-    let input = Input::new(path_params.table_number, path_params.order_id);
-    input.validate()?;
+    let input = Input::new(path_params.into_inner()).validate()?;
 
     let result_data = order_repository
         .delete_order(input.table_number as i32, input.order_id as i64)

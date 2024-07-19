@@ -36,14 +36,14 @@ impl Input {
     }
 
     /// performs simple request validation to make check some bounds.
-    fn validate(&self) -> Result<bool, ListFailure> {
+    fn validate(self) -> Result<Self, ListFailure> {
         if self.table_number < 1 || self.table_number > 100 {
             return Err(ListFailure::InvalidInput(BadRequestBody {
                 error: true,
                 message: String::from("table_number must be in range of 1 to 100"),
             }));
         }
-        return Ok(true);
+        return Ok(self);
     }
 }
 
@@ -123,8 +123,7 @@ async fn handler(
     path_params: web::Path<PathParams>,
     query_params: web::Query<QueryParams>,
 ) -> Result<HttpResponse, ListFailure> {
-    let input = Input::new(path_params.into_inner(), query_params.into_inner());
-    input.validate()?;
+    let input = Input::new(path_params.into_inner(), query_params.into_inner()).validate()?;
 
     match order_repository
         .list_by_table(

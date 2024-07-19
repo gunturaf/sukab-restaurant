@@ -85,16 +85,16 @@ impl fmt::Display for Input {
 }
 
 impl Input {
-    fn new(rb: RequestBody, table_number: u32, cook_time: CookTime) -> Self {
+    fn new(rb: RequestBody, path_params: PathParams, cook_time: CookTime) -> Self {
         Self {
-            table_number,
+            table_number: path_params.table_number,
             cook_time: cook_time.get_random(),
             menu_id: rb.menu_id,
         }
     }
 
     /// performs simple request validation to make check some bounds.
-    fn validate(&self) -> Result<bool, CreateFailure> {
+    fn validate(self) -> Result<Self, CreateFailure> {
         if self.menu_id < 1 || self.menu_id > 10 {
             return Err(CreateFailure::InvalidInput(BadRequestBody {
                 error: true,
@@ -107,7 +107,7 @@ impl Input {
                 message: String::from("table_number must be in range of 1 to 100"),
             }));
         }
-        return Ok(true);
+        return Ok(self);
     }
 }
 
@@ -182,8 +182,7 @@ async fn handler(
 ) -> Result<HttpResponse, CreateFailure> {
     let json_request = request_body.into_inner();
     let cook_time = CookTime::new();
-    let input = Input::new(json_request, path_params.table_number, cook_time);
-    input.validate()?;
+    let input = Input::new(json_request, path_params.into_inner(), cook_time).validate()?;
 
     let order_entity = db::order::Order::new(
         input.table_number as i32,
