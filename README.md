@@ -167,7 +167,7 @@ Run: `cargo test`.
 |`PG_PWD`       | PostgreSQL password.                        | Yes | `<empty_string>`   |
 |`PG_DBNAME`    | PostgreSQL database name.                   | No  | `sukab_restaurant` |
 |`COOK_TIME_MIN`| Minimum bound to get randomized Cook Time.  | No  | `5`                |
-|`COOK_TIME_MIN`| Maximum bound to get randomized Cook Time.  | No  | `15`               |
+|`COOK_TIME_MAX`| Maximum bound to get randomized Cook Time.  | No  | `15`               |
 
 ## Client Env Vars
 
