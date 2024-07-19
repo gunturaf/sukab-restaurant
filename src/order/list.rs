@@ -16,11 +16,23 @@ use super::{BadRequestBody, MenuData, OrderData};
 /// The input data to list Orders.
 struct Input {
     table_number: u32,
+    page: i32,
+    limit: i32,
 }
 
 impl Input {
-    fn new(table_number: u32) -> Self {
-        Self { table_number }
+    fn new(path_params: PathParams, query_params: QueryParams) -> Self {
+        let table_number = path_params.table_number;
+        let page = query_params.page.unwrap_or(0) as i32;
+        let limit = query_params
+            .limit
+            .map(|v| if v == 0 { 1 } else { v })
+            .unwrap_or(5) as i32;
+        Self {
+            table_number,
+            page,
+            limit,
+        }
     }
 
     /// performs simple request validation to make check some bounds.
@@ -38,6 +50,12 @@ impl Input {
 #[derive(Serialize, Deserialize)]
 struct PathParams {
     table_number: u32,
+}
+
+#[derive(Serialize, Deserialize)]
+struct QueryParams {
+    limit: Option<u32>,
+    page: Option<u32>,
 }
 
 #[derive(Debug)]
@@ -103,12 +121,17 @@ impl SuccessResponseBody {
 async fn handler(
     order_repository: web::Data<dyn db::order::Repository>,
     path_params: web::Path<PathParams>,
+    query_params: web::Query<QueryParams>,
 ) -> Result<HttpResponse, ListFailure> {
-    let input = Input::new(path_params.table_number);
+    let input = Input::new(path_params.into_inner(), query_params.into_inner());
     input.validate()?;
 
     match order_repository
-        .list_by_table(input.table_number as i32)
+        .list_by_table(
+            input.table_number as i32,
+            input.page as i64,
+            input.limit as i64,
+        )
         .await
     {
         Ok(orders) => Ok(HttpResponse::Ok().json(SuccessResponseBody::new(orders))),
@@ -165,7 +188,7 @@ mod tests {
         order_repo
             .expect_list_by_table()
             .once()
-            .returning(move |table_number| {
+            .returning(move |table_number, _, _| {
                 let expect_order_data = Order {
                     order_id: expect_order_id,
                     table_number,
@@ -210,7 +233,7 @@ mod tests {
         order_repo
             .expect_list_by_table()
             .once()
-            .returning(|_| Err(OperationError::OtherError));
+            .returning(|_, _, _| Err(OperationError::OtherError));
         let arc_order_repo: Arc<dyn db::order::Repository> = Arc::new(order_repo);
 
         let app = test::init_service(

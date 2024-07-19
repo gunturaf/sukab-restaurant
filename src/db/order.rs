@@ -15,7 +15,12 @@ pub trait Repository {
     /// Store the Order entity into the datastore.
     async fn create_order(&self, data: Order) -> Result<Order, OperationError>;
     /// List Orders by Table number.
-    async fn list_by_table(&self, table_number: i32) -> Result<Vec<Order>, OperationError>;
+    async fn list_by_table(
+        &self,
+        table_number: i32,
+        page: i64,
+        limit: i64,
+    ) -> Result<Vec<Order>, OperationError>;
     /// Get Order detail by its ID and table_number.
     async fn get_order_detail(
         &self,
@@ -98,11 +103,22 @@ impl Repository for OrderRepository {
             .map_err(|e| OperationError::FailedToCreate(e))
     }
 
-    async fn list_by_table(&self, table_number: i32) -> Result<Vec<Order>, OperationError> {
+    async fn list_by_table(
+        &self,
+        table_number: i32,
+        page: i64,
+        limit: i64,
+    ) -> Result<Vec<Order>, OperationError> {
         let conn = self.get_conn().await?;
 
-        let query = "SELECT o.*, m.* FROM orders o INNER JOIN menus m ON o.menu_id = m.menu_id WHERE table_number = $1 ORDER BY created_at DESC";
-        conn.query(query, &[&table_number])
+        let offset = match page {
+            0 => 0,
+            1 => 0,
+            v => v * limit,
+        };
+
+        let query = "SELECT o.*, m.* FROM orders o INNER JOIN menus m ON o.menu_id = m.menu_id WHERE table_number = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3";
+        conn.query(query, &[&table_number, &limit, &offset])
             .await
             .map(|rows| {
                 rows.iter()
