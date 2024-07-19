@@ -17,18 +17,26 @@ There are four HTTP REST endpoints:
 
 # How to Run the Server
 
-1. Spin up a PostgreSQL server, a minimum version of PostgreSQL 14.
+1. Spin up a PostgreSQL server, a minimum version of PostgreSQL 14 is required.
 2. Import the schema and data from the `./src/db/schema/sukab-restaurant.sql` file.
-   This file will create: 1) Database `sukab_restaurant`, 2) Table `orders`, 3) Table `menus`.
-   The file also contains the seed values for `menus` table.
-3. Build the app, run `cargo build`
+   This file will create:
+    - Database `sukab_restaurant`,
+    - Table `orders`,
+    - Table `menus`.
+    - Seed data for `menus` table.
+3. Build the app, run `cargo build --release`
 4. Set these environment variables:
     ```
     export PG_HOST=localhost
     export PG_USER=<your_user>
     export PG_PWD=<your_pwd>
     ```
-5. Run the app by executing this in the terminal: `./target/...`
+5. Run the app by executing this command in the terminal: `./target/release/server`.
+
+# How to Run the Client
+
+1. Make sure the Server is running, if not, follow the guide above.
+2. Run the app by executing this command in the terminal: `./target/release/client`.
 
 # Appendix 1: Environment Variables
 
