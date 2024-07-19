@@ -32,6 +32,8 @@ There are four HTTP REST endpoints:
 
 # Appendix 1: Environment Variables
 
+## Server Env Vars
+
 |      Key      | Description | Required | Default |
 |---------------|-------------|----------|---------|
 |`RUST_LOG`     | env_logger log level/verbosity.|No|`debug`|
@@ -44,3 +46,11 @@ There are four HTTP REST endpoints:
 |`PG_DBNAME`    | PostgreSQL database name, defaults to `sukab_restaurant`.|No|`sukab_restaurant`|
 |`COOK_TIME_MIN`| Minimum bound to get randomized Cook Time.|No|`5`|
 |`COOK_TIME_MIN`| Maximum bound to get randomized Cook Time.|No|`15`|
+
+## Client Env Vars
+
+|      Key      | Description | Required | Default |
+|---------------|-------------|----------|---------|
+|`RUST_LOG`     | env_logger log level/verbosity.|No|`debug`|
+|`SERVER_BASE_URL`     | Base URL for the Server |No|`http://localhost:8080`|
+|`CLIENT_THREAD_COUNT`| Controls how many threads to spawn to send requests.|No|`10`|

@@ -75,7 +75,7 @@ fn send_create_order(table_number: i32, menu_id: i32) -> Result<i32, ()> {
         Ok(v) => {
             let stat_code = v.status();
             let r: CreateResponse = v.json().unwrap();
-            println!(
+            log::info!(
                 "create order, status {}, order ID = {}",
                 stat_code,
                 r.order.order_id.clone()
@@ -83,7 +83,7 @@ fn send_create_order(table_number: i32, menu_id: i32) -> Result<i32, ()> {
             Ok(r.order.order_id)
         }
         Err(e) => {
-            println!("{:?}", e);
+            log::error!("{:?}", e);
             Err(())
         }
     }
@@ -97,10 +97,10 @@ fn send_delete_order(table_number: i32, order_id: i32) {
     let response = client.delete(url).send();
     match response {
         Ok(v) => {
-            println!("delete order ID {}, status {:?}", order_id, v.status());
+            log::info!("delete order ID {}, status {:?}", order_id, v.status());
         }
         Err(e) => {
-            println!("delete order ID {}, failure {:?}", order_id, e);
+            log::error!("delete order ID {}, failure {:?}", order_id, e);
         }
     }
 }
@@ -112,7 +112,7 @@ fn send_detail_order(table_number: i32, order_id: i32) {
     match response {
         Ok(v) => {
             let stat_code = v.status();
-            println!(
+            log::info!(
                 "get order detail by ID {}, status {}, response {:?}",
                 order_id,
                 stat_code,
@@ -120,7 +120,7 @@ fn send_detail_order(table_number: i32, order_id: i32) {
             );
         }
         Err(e) => {
-            println!("get order detail by ID {}, failure {:?}", order_id, e);
+            log::error!("get order detail by ID {}, failure {:?}", order_id, e);
         }
     }
 }
@@ -132,7 +132,7 @@ fn send_list_orders(table_number: i32) {
     match response {
         Ok(v) => {
             let stat_code = v.status();
-            println!(
+            log::info!(
                 "list orders by Table Number {}, status = {}, response = {:?}",
                 table_number,
                 stat_code,
@@ -140,7 +140,7 @@ fn send_list_orders(table_number: i32) {
             );
         }
         Err(e) => {
-            println!(
+            log::error!(
                 "list orders by Table Number {}, failure {:?}",
                 table_number, e
             );
@@ -149,8 +149,8 @@ fn send_list_orders(table_number: i32) {
 }
 
 fn send_request(table_number: i32, menu_id: i32) {
-    send_list_orders(table_number);
     let order_id = send_create_order(table_number, menu_id).unwrap();
+    send_list_orders(table_number);
     send_detail_order(table_number, order_id);
     send_delete_order(table_number, order_id)
 }
@@ -162,7 +162,17 @@ fn get_thread_count(default_count: i32) -> i32 {
     }
 }
 
+fn set_global_logger() {
+    let rust_log_flag = "RUST_LOG";
+    match env::var(rust_log_flag) {
+        Ok(_) => {}
+        Err(_) => env::set_var(rust_log_flag, "info"),
+    };
+    env_logger::init();
+}
+
 fn main() {
+    set_global_logger();
     let thread_count = get_thread_count(10);
     let mut w = Vec::<JoinHandle<()>>::new();
 
