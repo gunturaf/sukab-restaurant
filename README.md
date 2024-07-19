@@ -8,8 +8,8 @@ The name Sukab is taken from the fictional character made by [famous Indonesian 
 
 There are three entities in this app: `Table`, `Order` and `Menu`.
 
-A `Table` represents one or many Customer,
-it might hold additional metadata that enrich the experience of the app.
+A `Table` represents one customer,
+it might hold additional metadata that enrich the customer experience.
 However, for simplicity's sake, `Table` in this app will only be represented as `table_number`.
 
 An `Order` represents a unique request from `Table`,
@@ -86,7 +86,9 @@ There are two tables that plays their role in the solution:
 Index for `orders` table (other than PK):
 
 - `orders_table_number_order_id_index`, composite index from two columns `table_number` and `order_id`,
-  this index will be useful for the usecase listing Orders in a Table.
+  this index will be useful for the usecase Delete Order.
+- Additional index may be added later, for example,
+  a `table_number` index may be added to make usecase List Order to be more performant.
 
 `menu` table:
 
@@ -94,6 +96,23 @@ Index for `orders` table (other than PK):
 |---------------|----------------|-------------------------------|
 | `menu_id`     | `bigserial`    | Identifier and Primary Key.   |
 | `name`        | `varchar(300)` | Name of the Menu.             |
+
+## Code Architecture
+
+I follow a simple but modular arch to make sure each component
+is having clear responsibility, so that the code is maintainable and extensible
+for future product evolution.
+
+```mermaid
+flowchart TD
+    X[fn main] -->|Initializes| A
+    X -->|Initializes| T
+    A[[Conn Pool]]
+    C[Repository] -->|Get connection| A
+    A -->|Manages long-lived conn to| D[PostgreSQL]
+    U[Endpoint Handler] -->|Accesses| C
+    T[[Actix Web Framework]] -->|Manages low-level async HTTP server| U
+```
 
 ## Interfacing via HTTP REST endpoints
 
