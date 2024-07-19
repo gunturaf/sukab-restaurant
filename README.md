@@ -118,12 +118,12 @@ flowchart TD
 
 There are four HTTP REST endpoints:
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST   | `/table/{table_number}/order` | Create new Order. |
-| GET    | `/table/{table_number}/order` | List all Orders on a Table. |
+| Method | Path                                     | Description                   |
+|--------|------------------------------------------|-------------------------------|
+| POST   | `/table/{table_number}/order`            | Create new Order.             |
+| GET    | `/table/{table_number}/order`            | List all Orders on a Table.   |
 | GET    | `/table/{table_number}/order/{order_id}` | Describe an Order on a Table. |
-| DELETE | `/table/{table_number}/order/{order_id}` | Delete an Order on a Table. |
+| DELETE | `/table/{table_number}/order/{order_id}` | Delete an Order on a Table.   |
 
 # How to Run the tests
 
