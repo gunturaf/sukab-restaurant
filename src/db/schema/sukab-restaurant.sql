@@ -22,7 +22,7 @@ create table public.menus
     menu_id bigserial
         constraint menus_pk
             primary key,
-    name    text
+    name    varchar(300)
 );
 -- end: create tables
 
