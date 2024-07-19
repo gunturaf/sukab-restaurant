@@ -18,6 +18,7 @@ time = "0.3.36"
 postgres-types = { version = "0.2.6", features = ["derive"] }
 postgres-from-row = "0.5.2"
 mockall = "0.12.1"
+reqwest = { version = "0.12.5", features = ["blocking", "json"] }
 
 [[bin]]
 name = "client"
