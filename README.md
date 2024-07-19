@@ -88,9 +88,9 @@ Index for `orders` table (other than PK):
 - `orders_table_number_order_id_index`, composite index from two columns `table_number` and `order_id`,
   this index will be useful for the usecase Delete Order.
 - Additional index may be added later, for example,
-  a `table_number` index may be added to make usecase List Order to be more performant.
+  a `table_number` index might be added to make usecase List Order to be more performant.
 
-`menu` table:
+`menus` table:
 
 | Column Name   | Type           | Description                   |
 |---------------|----------------|-------------------------------|
