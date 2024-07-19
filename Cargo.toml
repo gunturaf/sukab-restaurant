@@ -2,7 +2,10 @@
 name = "sukab-restaurant"
 version = "0.1.0"
 edition = "2021"
-default-run = "sukab-restaurant"
+default-run = "server"
+
+[lib]
+name = "sukab_resto"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -22,3 +25,6 @@ reqwest = { version = "0.12.5", features = ["blocking", "json"] }
 
 [[bin]]
 name = "client"
+
+[[bin]]
+name = "server"

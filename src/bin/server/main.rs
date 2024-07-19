@@ -1,12 +1,11 @@
 use std::{env, sync::Arc};
 
 use actix_web::{middleware::Logger, web, App, HttpServer};
-use db::menu::Repository as MenuRepository;
-use db::order::Repository as OrderRepository;
+use sukab_resto::db::create_conn_pool;
+use sukab_resto::db::menu::{MenuRepository, Repository as MenuRepositoryTrait};
+use sukab_resto::db::order::{OrderRepository, Repository as OrderRepositoryTrait};
 use log;
-
-mod db;
-mod order;
+use sukab_resto::order::service;
 
 /// get host:port pair for our HTTP server.
 fn get_host_port() -> (String, u16) {
@@ -33,7 +32,7 @@ fn set_global_logger() {
 async fn main() -> std::io::Result<()> {
     set_global_logger();
 
-    let db_conn_pool = db::create_conn_pool();
+    let db_conn_pool = create_conn_pool();
     log::info!(
         "PostgreSQL connection pool is created: {:?}",
         db_conn_pool.clone()
@@ -43,15 +42,15 @@ async fn main() -> std::io::Result<()> {
 
     let server = HttpServer::new(move || {
         let logger = Logger::default();
-        let order_repo = db::order::OrderRepository::new(db_conn_pool.clone());
-        let arc_order_repo: Arc<dyn OrderRepository> = Arc::new(order_repo);
-        let menu_repo = db::menu::MenuRepository::new(db_conn_pool.clone());
-        let arc_menu_repo: Arc<dyn MenuRepository> = Arc::new(menu_repo);
+        let order_repo = OrderRepository::new(db_conn_pool.clone());
+        let arc_order_repo: Arc<dyn OrderRepositoryTrait> = Arc::new(order_repo);
+        let menu_repo = MenuRepository::new(db_conn_pool.clone());
+        let arc_menu_repo: Arc<dyn MenuRepositoryTrait> = Arc::new(menu_repo);
         App::new()
             .wrap(logger)
             .app_data(web::Data::from(arc_order_repo))
             .app_data(web::Data::from(arc_menu_repo))
-            .service(order::service())
+            .service(service())
     })
     .bind(host_port.clone())?
     .run();

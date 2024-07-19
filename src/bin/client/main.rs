@@ -83,7 +83,7 @@ fn send_create_order(table_number: i32, menu_id: i32) -> Result<i32, ()> {
             Ok(r.order.order_id)
         }
         Err(e) => {
-            log::error!("{:?}", e);
+            log::error!("create order failed = {:?}", e);
             Err(())
         }
     }
@@ -174,7 +174,7 @@ fn set_global_logger() {
 fn main() {
     set_global_logger();
     let thread_count = get_thread_count(10);
-    let mut w = Vec::<JoinHandle<()>>::new();
+    let mut thread_handles = Vec::<JoinHandle<()>>::new();
 
     for _ in 0..thread_count {
         let handle = thread::spawn(|| {
@@ -182,10 +182,10 @@ fn main() {
             let menu_id = get_random_range_inclusive(1, 10);
             send_request(table_number, menu_id);
         });
-        w.push(handle);
+        thread_handles.push(handle);
     }
 
-    for v in w {
-        v.join().unwrap();
+    for thread_handle in thread_handles {
+        thread_handle.join().unwrap();
     }
 }
